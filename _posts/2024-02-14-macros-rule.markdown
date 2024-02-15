@@ -406,7 +406,10 @@ reverseTokens list = completeSyntaxElementFrom reversedList
 
 ### TT Bundling
 
-This is sort of like packing a bunch of values into a struct. Instead of now having to .
+This is sort of like packing a bunch of values into a struct. Instead of now having to match on a
+large amount of inputs, you match on a single struct instance. The nice thing here is that you can
+still access those struct fields later, as opposed to most other times you turn multiple tokens
+into one single token.
 
 ### Callbacks
 
