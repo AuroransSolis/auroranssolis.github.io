@@ -59,9 +59,10 @@ macro_rules! rock_paper_scissors {
 ```
 
 Note here how we're matching on literal tokens - `rock`, `paper`, and `scissors`. We aren't checking
-if the two tokens are the same (because we can't), instead we're spelling out every state that the
-input _could_ be in. Let's take this idea and combine it with some other macro patterns and do
-something a little more interesting, say, adding up every other literal in a list of inputs.
+if the two tokens are the same (~~because we can't~~although we could[^1]), instead we're spelling
+out every state that the input _could_ be in. Let's take this idea and combine it with some other
+macro patterns and do something a little more interesting, say, adding up every other literal in a
+list of inputs.
 
 ```rs
 macro_rules! add_every_other {
@@ -266,7 +267,7 @@ job of setting you up to make this realisation, so let me state it more explicit
 # Macros Are Functional
 
 Or, well, kind of. They're very, very close to functional programming. The only thing I can even
-think of that makes macros impure functions is the side effect of mutating the module namespace[^1].
+think of that makes macros impure functions is the side effect of mutating the module namespace[^2].
 For example, calling a struct-defining macro twice with the same input will produce the same output,
 which is a problem because there will now be two structs with the same name, producing a compile
 error. Other than this, there's very few things that differ from pure functional programming:
@@ -430,6 +431,10 @@ usual, so if you're looking to buff up in this particular part of Rust programmi
 learning Haskell (^: (or another functional language if you'd prefer)
 
 [^1]:
+    With some inspiration I did actually realise this is possible recently, see [my blog post on
+    the topic]({% post_url 2024-02-26-uh-oh %})
+
+[^2]:
     It's possible this is not actually a side effect of macros and that you could consider the
     mutation of the module namespace to be done by the compiler after the macro is expanded, however
     I'm not certain this is a wholly useful distinction to make since your code isn't going to
