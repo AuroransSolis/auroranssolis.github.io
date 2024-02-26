@@ -6,7 +6,7 @@ categories: rust
 So this sucks. Egg on my face, you can actually compare tokens (but again, it sucks). Thanks to
 [Kitlith's issue thread](https://github.com/AuroransSolis/auroranssolis.github.io/issues/1), a
 couple disconnected bits of knowledge were brought together in my head and I realised how you can
-somewhat genereically do token comparison. Here's the powerhouse of ~~the cell~~ the comparison
+somewhat generically do token comparison. Here's the powerhouse of ~~the cell~~ the comparison
 mechanism:
 ```rs
 macro_rules! def_eq {
