@@ -1,0 +1,343 @@
+---
+layout: post
+title: "Uh oh! You can actually compare tokens!"
+categories: rust
+---
+So this sucks. Egg on my face, you can actually compare tokens (but again, it sucks). Thanks to
+[Kitlith's issue thread](https://github.com/AuroransSolis/auroranssolis.github.io/issues/1), a
+couple disconnected bits of knowledge were brought together in my head and I realised how you can
+somewhat genereically do token comparison. Here's the powerhouse of ~~the cell~~ the comparison
+mechanism:
+```rs
+macro_rules! def_eq {
+    (
+        d: [$d:tt],
+        lookfor: [$lookfor:tt],
+        input: [$input:tt],
+        true: [$($true:tt)*],
+        false: [$($false:tt)*],
+    ) => {
+        macro_rules! token_eq {
+            ($lookfor) => {
+                $($true)*
+            };
+            ($d($d _:tt)*) => {
+                $($false)*
+            };
+        }
+
+        token_eq! {
+            $input
+        }
+    };
+}
+```
+In essence, we give it a token tree to look for, an input to compare against, and then token trees
+to expand to for true and false comparisons. Rust shadows macro definitions, so whatever the most
+recent definition in scope is is the one that will be used. So for instance, we can do something
+like
+```rs
+macro_rules! pair_eq {
+    // base case 1 - input had an even number of tokens, return whatever
+    // we accumulated
+    (
+        @acc
+        in: [],
+        out: $out:tt,
+    ) => {
+        $out
+    };
+    // base case 2 - input had an odd number of tokens, return whatever
+    // we accumulated plus a final `false`
+    (
+        @acc
+        in: [$e0:tt],
+        out: [$($out:literal),*],
+    ) => {
+        [$($out,)* false]
+    };
+    // recursive case - test equality between the first two tokens, recurse
+    // with the rest
+    (
+        @acc
+        in: [$e0:tt $e1:tt $($rest:tt)*],
+        out: [$($out:literal),*],
+    ) => {
+        def_eq! {
+            d: [$],
+            lookfor: [$e0],
+            input: [$e1],
+            true: [
+                pair_eq! {
+                    @acc
+                    in: [$($rest)*],
+                    out: [$($out,)* true],
+                }
+            ],
+            false: [
+                pair_eq! {
+                    @acc
+                    in: [$($rest)*],
+                    out: [$($out,)* false],
+                }
+            ],
+        }
+    };
+    // accept any input
+    ($($input:tt)*) => {
+        {
+            pair_eq! {
+                @acc
+                in: [$($input)*],
+                out: [],
+            }
+        }
+    };
+}
+```
+Let's look at how this expands for an example input, say, `pair_eq!(a b b b c)`:
+```rs
+pair_eq!(a b b b c)
+
+{
+    pair_eq! {
+        @acc
+        in: [a b b b c],
+        out: [],
+    }
+}
+
+{
+    def_eq! {
+        d: [$],
+        lookfor: [a],
+        input: [b],
+        true: [
+            pair_eq! {
+                @acc
+                in: [b b c],
+                out: [true],
+            }
+        ],
+        false: [
+            pair_eq! {
+                @acc
+                in: [b b c],
+                out: [false],
+            }
+        ]
+    }
+}
+
+{
+    macro_rules! token_eq {
+        (a) => {
+            pair_eq! {
+                @acc
+                in: [b b c],
+                out: [true],
+            }
+        };
+        ($($_:tt)*) => {
+            pair_eq! {
+                @acc
+                in: [b b c],
+                out: [false],
+            }
+        };
+    }
+
+    token_eq! {
+        b
+    }
+}
+
+{
+    macro_rules! token_eq {
+        (a) => {
+            pair_eq! {
+                @acc
+                in: [b b c],
+                out: [true],
+            }
+        };
+        ($($_:tt)*) => {
+            pair_eq! {
+                @acc
+                in: [b b c],
+                out: [false],
+            }
+        };
+    }
+
+    pair_eq! {
+        @acc
+        in: [b b c],
+        out: [false],
+    }
+}
+
+{
+    macro_rules! token_eq {
+        (a) => {
+            pair_eq! {
+                @acc
+                in: [b b c],
+                out: [true],
+            }
+        };
+        ($($_:tt)*) => {
+            pair_eq! {
+                @acc
+                in: [b b c],
+                out: [false],
+            }
+        };
+    }
+
+    def_eq! {
+        d: [$],
+        lookfor: [b],
+        input: [b],
+        true: [
+            pair_eq! {
+                @acc
+                in: [c],
+                out: [false, true],
+            }
+        ],
+        false: [
+            pair_eq! {
+                @acc
+                in: [c],
+                out: [false, false],
+            }
+        ],
+    }
+}
+
+{
+    macro_rules! token_eq {
+        (a) => {
+            pair_eq! {
+                @acc
+                in: [b b c],
+                out: [true],
+            }
+        };
+        ($($_:tt)*) => {
+            pair_eq! {
+                @acc
+                in: [b b c],
+                out: [false],
+            }
+        };
+    }
+
+    macro_rules! token_eq {
+        (b) => {
+            pair_eq! {
+                @acc
+                in: [c],
+                out: [false, true],
+            }
+        };
+        ($($_:tt)*) => {
+            pair_eq! {
+                @acc
+                in: [c],
+                out: [false, false],
+            }
+        };
+    }
+
+    token_eq! {
+        b
+    }
+}
+
+{
+    macro_rules! token_eq {
+        (a) => {
+            pair_eq! {
+                @acc
+                in: [b b c],
+                out: [true],
+            }
+        };
+        ($($_:tt)*) => {
+            pair_eq! {
+                @acc
+                in: [b b c],
+                out: [false],
+            }
+        };
+    }
+
+    macro_rules! token_eq {
+        (b) => {
+            pair_eq! {
+                @acc
+                in: [c],
+                out: [false, true],
+            }
+        };
+        ($($_:tt)*) => {
+            pair_eq! {
+                @acc
+                in: [c],
+                out: [false, false],
+            }
+        };
+    }
+
+    pair_eq! {
+        @acc
+        in: [c],
+        out: [false, true],
+    }
+}
+
+{
+    macro_rules! token_eq {
+        (a) => {
+            pair_eq! {
+                @acc
+                in: [b b c],
+                out: [true],
+            }
+        };
+        ($($_:tt)*) => {
+            pair_eq! {
+                @acc
+                in: [b b c],
+                out: [false],
+            }
+        };
+    }
+
+    macro_rules! token_eq {
+        (b) => {
+            pair_eq! {
+                @acc
+                in: [c],
+                out: [false, true],
+            }
+        };
+        ($($_:tt)*) => {
+            pair_eq! {
+                @acc
+                in: [c],
+                out: [false, false],
+            }
+        };
+    }
+
+    [false, true, false]
+}
+```
+The idea is just that we keep redefining the equality check we want to make and then immediately
+calling it, and the equality check should (usually) expand to another macro call. It's somewhat
+unfortunate that it takes two recursion steps in order for that to happen, but c'est la vie.
+
+tl;dr: macro shadowing lets you define ad-hoc token comparison macros.
